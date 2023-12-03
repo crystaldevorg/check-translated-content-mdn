@@ -45,8 +45,9 @@ async function main() {
   const blockId = process.env.NOTION_PAGE_ID;
   await clearPage(blockId);
 
-  for (const link of links) {
+  for (const rawLink of links) {
     try {
+      const link = rawLink.replace("{{language}}", process.env.LANGUAGE_CODE);
       const status = await checkPageStatus(link);
       const isChecked = status === 200;
 

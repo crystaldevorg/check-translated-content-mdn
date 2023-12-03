@@ -1,6 +1,8 @@
 # Check Translated Content MDN
 
-This script checks the status of a list of URLs and updates a Notion page with the results. For each URL, it creates a new block in Notion with a checkbox indicating whether the URL is accessible or not.
+**CrystalDev is making an effort to translate MDN content to Brazilian Portuguese. This script is part of that effort.**
+
+This script checks the status of a list of URLs for translated content on MDN and updates a Notion page with the results.
 
 ## How to use
 
@@ -12,8 +14,14 @@ This script checks the status of a list of URLs and updates a Notion page with t
 npm install
 ```
 
-3. Create a `.env` file with the following variables:
+1. Copy the `.env.example` file to `.env` and fill in the variables:
 
+```bash
+cp .env.example .env
 ```
 
+2. Run the script
+
+```bash
+npm start
 ```
