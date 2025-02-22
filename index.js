@@ -1,34 +1,10 @@
 const https = require("https");
-const { Client } = require("@notionhq/client");
+const fs = require("fs");
 const { config } = require("dotenv");
 const links = require("./links.json");
 
 config();
 
-const apiKey = process.env.NOTION_API_KEY;
-
-const notion = new Client({ auth: apiKey });
-
-async function clearPage(pageId) {
-  let hasMore = true;
-  let startCursor = undefined;
-
-  while (hasMore) {
-    const response = await notion.blocks.children.list({
-      block_id: pageId,
-      start_cursor: startCursor,
-    });
-
-    for (const block of response.results) {
-      await notion.blocks.delete({ block_id: block.id });
-    }
-
-    hasMore = response.has_more;
-    startCursor = response.next_cursor;
-  }
-}
-
-// Function to check page status
 async function checkPageStatus(link) {
   return new Promise((resolve) => {
     const request = https.get(link, (response) => {
@@ -38,14 +14,20 @@ async function checkPageStatus(link) {
       console.error(`Error checking link: ${link}`);
       resolve(null);
     });
+    request.setTimeout(5000, () => {
+      // 5 seconds timeout
+      console.error(`Timeout checking link: ${link}`);
+      request.abort();
+      resolve(404); // Treat timeout as page not found
+    });
   });
 }
 
 async function main() {
-  const blockId = process.env.NOTION_PAGE_ID;
-  await clearPage(blockId);
+  const filePath = "./TODO.md";
+  let content = "# TODO List\n\n";
 
-  for (const rawLink of links) {
+  const linkPromises = links.map(async (rawLink, index) => {
     try {
       const link = rawLink.replace("{{language}}", process.env.LANGUAGE_CODE);
       const status = await checkPageStatus(link);
@@ -53,48 +35,19 @@ async function main() {
 
       const title = link.split("/").pop();
 
-      console.log("\n\n\n\n------------");
-      console.log(`Adding ${link}`);
-      console.log("------------\n");
+      console.log(`Processing link ${index + 1}/${links.length}: ${link}`);
 
-      await notion.blocks.children.append({
-        block_id: blockId,
-        children: [
-          {
-            object: "block",
-            type: "heading_1",
-            heading_1: {
-              rich_text: [
-                {
-                  type: "text",
-                  text: {
-                    content: title,
-                  },
-                },
-              ],
-            },
-          },
-          {
-            object: "block",
-            type: "to_do",
-            to_do: {
-              rich_text: [
-                {
-                  type: "text",
-                  text: {
-                    content: link,
-                  },
-                },
-              ],
-              checked: isChecked,
-            },
-          },
-        ],
-      });
+      return `## ${title}\n- [${isChecked ? "x" : " "}] ${link}\n\n`;
     } catch (err) {
-      throw new Error(err);
+      console.error(`Error processing link: ${rawLink}`, err);
+      return `## ${rawLink}\n- [ ] ${rawLink}\n\n`;
     }
-  }
+  });
+
+  const results = await Promise.all(linkPromises);
+  content += results.join("");
+
+  fs.writeFileSync(filePath, content, "utf8");
 }
 
 main();
